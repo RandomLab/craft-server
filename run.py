@@ -106,24 +106,21 @@ class Server(object):
 
 
 class GameController(object):
-    players = []
+    players = {}
     def __init__(self):
         self.server = Server()
         self.server.on("/register", self.register_player)
 
     def register_player(self, address, name, ip):
-        print(threading.current_thread())
         p = Player(name, ip)
-        print(self)
-        GameController.players.append(p)
-        print(GameController.players)
+        if ip not in GameController.players:
+            GameController.players[ip] = p
         p.send(Messages.hack)
     def shutdown(self):
         self.server.shutdown()
     def send_clock(self):
-        print(GameController.players)
         for p in GameController.players:
-            p.send(Messages.clock)
+            GameController.players[p].send(Messages.clock)
     def send_hack_to(self, player):
         pass
     def send_hack(self):
@@ -163,7 +160,6 @@ class App():
         self.controller.shutdown()
         self.root.destroy()
     def update_game(self):
-        print(threading.current_thread())
         if self.run:
             self.controller.send_clock()
         else:
