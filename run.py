@@ -78,6 +78,7 @@ player = os.getenv("USERNAME")
 class App():
     def __init__(self):
         self.root = tk.Tk()
+        self.root.geometry('{}x{}'.format(200, 500))
         self.run = False
         self.label = tk.Label(text = "Server")
         self.label.pack()
