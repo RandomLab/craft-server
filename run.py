@@ -11,7 +11,7 @@ import tkinter as tk
 import time
 import random
 import socket
-
+import threading
 
 users = {}
 
@@ -73,18 +73,79 @@ ROBOT_UPDATE_TIME = 5
 WIDTH = 200
 HEIGHT = 500
 
-player = os.getenv("USERNAME")
+class Player(object):
+    def __init__(self, name, ip, port = 5005):
+        self.name = name
+        self.ip = ip
+        self.port = port
+        self.client = udp_client.UDPClient(self.ip, self.port)
+    def send(self, msg):
+        self.client.send(msg)
+    def __str__(self):
+        return self.name + " " + self.ip
+
+class Messages(object):
+    hack = osc_message_builder.OscMessageBuilder(address="/hack").build()
+    clock = osc_message_builder.OscMessageBuilder(address="/clock").build()
+
+class Server(object):
+    def __init__(self):
+
+        self.dispatcher = dispatcher.Dispatcher()
+        #self.dispatcher.map("/register", self.register_player, "Register")
+        #self.server = osc_server.ForkingOSCUDPServer(("0.0.0.0", 5006), self.dispatcher)
+        self.server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", 5006), self.dispatcher)
+
+        self.server_thread = threading.Thread(target=self.server.serve_forever)
+        self.server_thread.start()
+
+    def on(self, address, callback):
+        self.dispatcher.map(address, callback)
+    def shutdown(self):
+        self.server.shutdown()
+
+
+class GameController(object):
+    players = []
+    def __init__(self):
+        self.server = Server()
+        self.server.on("/register", self.register_player)
+
+    def register_player(self, address, name, ip):
+        print(threading.current_thread())
+        p = Player(name, ip)
+        print(self)
+        GameController.players.append(p)
+        print(GameController.players)
+        p.send(Messages.hack)
+    def shutdown(self):
+        self.server.shutdown()
+    def send_clock(self):
+        print(GameController.players)
+        for p in GameController.players:
+            p.send(Messages.clock)
+    def send_hack_to(self, player):
+        pass
+    def send_hack(self):
+        pass
+
 
 class App():
     def __init__(self):
         self.root = tk.Tk()
         self.root.geometry('{}x{}'.format(200, 500))
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         self.run = False
         self.label = tk.Label(text = "Server")
         self.label.pack()
-        self.client = udp_client.UDPClient("255.255.255.255", 5005)
-        if hasattr(socket,'SO_BROADCAST'):
-            self.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+        self.controller = GameController()
+
+
+        #self.client = udp_client.UDPClient("255.255.255.255", 5005)
+        #if hasattr(socket,'SO_BROADCAST'):
+        #    self.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.start_stop_button = tk.Button(self.root, text="Start", command=self.start_stop)
         self.start_stop_button.pack()
         self.update_game()
@@ -97,13 +158,14 @@ class App():
         else:
             t = "Start"
         self.start_stop_button.config(text=t)
-
+    def on_closing(self):
+        print("Closing")
+        self.controller.shutdown()
+        self.root.destroy()
     def update_game(self):
+        print(threading.current_thread())
         if self.run:
-            print("update game")
-            msg = osc_message_builder.OscMessageBuilder(address="/clock")
-            msg = msg.build()
-            self.client.send(msg)
+            self.controller.send_clock()
         else:
             print("Game is paused !")
         self.root.after(ROBOT_UPDATE_TIME * 1000, self.update_game)
