@@ -74,13 +74,20 @@ WIDTH = 200
 HEIGHT = 500
 
 class Player(object):
+    client = udp_client.UDPClient("255.255.255.255", 5005)
+
     def __init__(self, name, ip, port = 5005):
         self.name = name
         self.ip = ip
         self.port = port
-        self.client = udp_client.UDPClient(self.ip, self.port)
-    def send(self, msg):
-        self.client.send(msg)
+        # Allow Broadcast
+        if hasattr(socket,'SO_BROADCAST'):
+            Player.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    @staticmethod
+    def send(msg, player_name = None):
+        #if player_name: msg.add(player_name)
+        Player.client.send(msg)
     def __str__(self):
         return self.name + " " + self.ip
 
@@ -115,12 +122,13 @@ class GameController(object):
         p = Player(name, ip)
         if ip not in GameController.players:
             GameController.players[ip] = p
-        p.send(Messages.hack)
+        Player.send(Messages.hack)
     def shutdown(self):
         self.server.shutdown()
     def send_clock(self):
-        for p in GameController.players:
-            GameController.players[p].send(Messages.clock)
+        #for p in GameController.players:
+        #    GameController.players[p].send(Messages.clock)
+        Player.send(Messages.clock)
     def send_hack_to(self, player):
         pass
     def send_hack(self):
@@ -160,6 +168,7 @@ class App():
         self.controller.shutdown()
         self.root.destroy()
     def update_game(self):
+        print(GameController.players)
         if self.run:
             self.controller.send_clock()
         else:
