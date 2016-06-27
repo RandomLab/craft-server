@@ -122,7 +122,7 @@ class GameController(object):
         p = Player(name, ip)
         if ip not in GameController.players:
             GameController.players[ip] = p
-            Player.send(Messages.hack, name)
+            Player.send(Messages.hack)
     def shutdown(self):
         self.server.shutdown()
     def send_clock(self):
