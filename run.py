@@ -85,8 +85,8 @@ class Player(object):
             Player.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     @staticmethod
-    def send(msg, player_name = None):
-        if player_name: msg.add_arg(player_name)
+    def send(msg):
+        #if player_name: msg.add_arg(player_name)
         Player.client.send(msg.build())
     def __str__(self):
         return self.name + " " + self.ip
