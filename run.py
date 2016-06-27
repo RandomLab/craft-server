@@ -86,21 +86,21 @@ class Player(object):
 
     @staticmethod
     def send(msg, player_name = None):
-        #if player_name: msg.add(player_name)
-        Player.client.send(msg)
+        if player_name: msg.add_arg(player_name)
+        Player.client.send(msg.build())
     def __str__(self):
         return self.name + " " + self.ip
+    def __repr__(self):
+        return self.__str__()
 
 class Messages(object):
-    hack = osc_message_builder.OscMessageBuilder(address="/hack").build()
-    clock = osc_message_builder.OscMessageBuilder(address="/clock").build()
+    hack = osc_message_builder.OscMessageBuilder(address="/hack")
+    clock = osc_message_builder.OscMessageBuilder(address="/clock")
 
 class Server(object):
     def __init__(self):
 
         self.dispatcher = dispatcher.Dispatcher()
-        #self.dispatcher.map("/register", self.register_player, "Register")
-        #self.server = osc_server.ForkingOSCUDPServer(("0.0.0.0", 5006), self.dispatcher)
         self.server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", 5006), self.dispatcher)
 
         self.server_thread = threading.Thread(target=self.server.serve_forever)
@@ -122,12 +122,10 @@ class GameController(object):
         p = Player(name, ip)
         if ip not in GameController.players:
             GameController.players[ip] = p
-        Player.send(Messages.hack)
+            Player.send(Messages.hack, name)
     def shutdown(self):
         self.server.shutdown()
     def send_clock(self):
-        #for p in GameController.players:
-        #    GameController.players[p].send(Messages.clock)
         Player.send(Messages.clock)
     def send_hack_to(self, player):
         pass
