@@ -115,10 +115,17 @@ class GameController(object):
     players = {}
     client = udp_client.UDPClient("255.255.255.255", 5006)
     def __init__(self):
+        self.stop_game = False
         self.server = Server()
         self.server.on("/register", self.register_player)
+        self.server.on("/winner", self.winner)
         if hasattr(socket,'SO_BROADCAST'):
             GameController.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+
+    def winner(self, address, winner, score):
+        self.stop_game = True
+
 
     def register_player(self, address, name, ip):
         p = Player(name, ip)
@@ -148,6 +155,13 @@ class App():
 
         self.controller = GameController()
 
+        background_image=tk.PhotoImage("Travailleur.bmp")
+        background_label = tk.Label(self.root, image=background_image)
+        background_label.place(x=0, y=0, relwidth=1, relheight=1)
+        background_label.image = background_image
+        background_label.pack()
+
+
 
         #self.client = udp_client.UDPClient("255.255.255.255", 5005)
         #if hasattr(socket,'SO_BROADCAST'):
@@ -175,13 +189,14 @@ class App():
         self.controller.shutdown()
         self.root.destroy()
     def update_game(self):
-        print(GameController.players)
         if self.run:
-            self.controller.send_clock()
-            self.playerListBox.delete(0, tk.END)
-            for p in GameController.players:
-                self.playerListBox.insert(tk.END, GameController.players[p].name)
-
+            if not self.controller.stop_game:
+                self.controller.send_clock()
+                self.playerListBox.delete(0, tk.END)
+                for p in GameController.players:
+                    self.playerListBox.insert(tk.END, GameController.players[p].name)
+            else:
+                self.start_stop()
         else:
             print("Game is paused !")
         self.root.after(ROBOT_UPDATE_TIME * 1000, self.update_game)
