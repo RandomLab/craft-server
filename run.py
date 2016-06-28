@@ -74,15 +74,13 @@ WIDTH = 200
 HEIGHT = 500
 
 class Player(object):
-    client = udp_client.UDPClient("255.255.255.255", 5005)
+
 
     def __init__(self, name, ip, port = 5005):
         self.name = name
         self.ip = ip
         self.port = port
         # Allow Broadcast
-        if hasattr(socket,'SO_BROADCAST'):
-            Player.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     @staticmethod
     def send(msg):
@@ -98,10 +96,11 @@ class Messages(object):
     clock = osc_message_builder.OscMessageBuilder(address="/clock")
 
 class Server(object):
-    def __init__(self):
-
+    def __init__(self, ip = "0.0.0.0", port = 5005):
+        self.ip = ip
+        self.port = port
         self.dispatcher = dispatcher.Dispatcher()
-        self.server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", 5006), self.dispatcher)
+        self.server = osc_server.ThreadingOSCUDPServer((self.ip, self.port), self.dispatcher)
 
         self.server_thread = threading.Thread(target=self.server.serve_forever)
         self.server_thread.start()
@@ -114,24 +113,28 @@ class Server(object):
 
 class GameController(object):
     players = {}
+    client = udp_client.UDPClient("255.255.255.255", 5006)
     def __init__(self):
         self.server = Server()
         self.server.on("/register", self.register_player)
+        if hasattr(socket,'SO_BROADCAST'):
+            GameController.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     def register_player(self, address, name, ip):
         p = Player(name, ip)
         if ip not in GameController.players:
             GameController.players[ip] = p
-            Player.send(Messages.hack)
+            self.send(Messages.hack)
     def shutdown(self):
         self.server.shutdown()
     def send_clock(self):
-        Player.send(Messages.clock)
+        self.send(Messages.clock)
     def send_hack_to(self, player):
         pass
     def send_hack(self):
         pass
-
+    def send(self, msg):
+        GameController.client.send(msg.build())
 
 class App():
     def __init__(self):
@@ -151,6 +154,12 @@ class App():
         #    self.client._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.start_stop_button = tk.Button(self.root, text="Start", command=self.start_stop)
         self.start_stop_button.pack()
+
+        self.playerListBox = tk.Listbox()
+        self.playerListBox.pack()
+
+
+
         self.update_game()
 
         self.root.mainloop()
@@ -169,6 +178,10 @@ class App():
         print(GameController.players)
         if self.run:
             self.controller.send_clock()
+            self.playerListBox.delete(0, tk.END)
+            for p in GameController.players:
+                self.playerListBox.insert(tk.END, GameController.players[p].name)
+
         else:
             print("Game is paused !")
         self.root.after(ROBOT_UPDATE_TIME * 1000, self.update_game)
